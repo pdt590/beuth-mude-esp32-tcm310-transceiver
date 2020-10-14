@@ -1,7 +1,12 @@
 #include <Arduino.h>
+#include "EnOceanProfile.h"
 #include "EnOcean.h"
 
+EnOceanProfile eep;
+
 void callback(uint8_t rorg, uint32_t id, uint32_t data , uint8_t dBm) {
+  uint8_t switchStatus = eep.getSwitchStatus(EEP_F6_02_04, data);
+  Serial.println(switchStatus, HEX);
 };
 
 EnOcean parser(callback);

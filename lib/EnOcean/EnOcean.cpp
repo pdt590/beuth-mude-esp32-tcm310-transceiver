@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "SerialCommunication.h"
 #include "EnOceanProfile.h"
-#include "ESP3Parser.h"
+#include "EnOcean.h"
 
 static SerialCommunication SerialCom;
 // Data Length - 2 bytes - 0xnnnn
@@ -137,13 +137,13 @@ const DecodeOpe DecodeOpeSet[] = {
 };
 
 
-ESP3Parser::ESP3Parser(AfterReceivedTel pAfterReceived)
+EnOcean::EnOcean(AfterReceivedTel pAfterReceived)
 {
   pReceivedOpe = pAfterReceived;
   reset();
 }
 
-void ESP3Parser::initialization()
+void EnOcean::begin()
 {
   Serial.println("                                   ");
   Serial.println("                                   ");
@@ -430,4 +430,3 @@ static uint8_t decodeCrc8d(char aChar)
   reset();
   return STATE_SYNC;
 }
-
