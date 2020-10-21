@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "EnOcean.h"
 
-uint8_t data[4] = {0x11,0x22,0x33,0x44};
+uint8_t data[4] = {0x12,0x34,0x56,0x78};
 
 void callback(uint8_t rorg, uint32_t id, uint32_t data , uint8_t dBm) {
 };
