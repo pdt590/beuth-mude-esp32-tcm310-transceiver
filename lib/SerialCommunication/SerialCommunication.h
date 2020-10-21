@@ -6,8 +6,10 @@ typedef uint8_t (*ReceptionOpe)(char);
 class SerialCommunication
 {
 public:
-  void Initialization(void);
-  void SetReceptOpe(ReceptionOpe* pRcvOpeSet);
+  void init(void);
+  void setReceptOpe(ReceptionOpe* pRcvOpeSet);
+  void sendByte(uint8_t byte);
+  void sendBuffer(const char* buffer, size_t len);
 
 private:
 };

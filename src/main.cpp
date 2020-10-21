@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include "EnOcean.h"
 
+uint8_t data[4] = {0x11,0x22,0x33,0x44};
+
 void callback(uint8_t rorg, uint32_t id, uint32_t data , uint8_t dBm) {
 };
 
@@ -18,5 +20,8 @@ void setup()
 
 void loop()
 {
-  ;
+  parser.sendPacket(RADIO_ERP1, RORG_4BS, data);
+  Serial.println();
+  Serial.println("Packet sent");
+  delay(3000);
 }

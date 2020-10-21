@@ -143,6 +143,63 @@ const DecodeOpe DecodeOpeSet[] = {
     decodeCrc8d      /* STATE_CRC8D */
 };
 
+
+/* typedef struct __attribute__((packed))
+{
+  uint8_t sync;
+  uint16_t data_len;
+  uint8_t optional_data_len;
+  uint8_t packet_type;
+  uint8_t crc8_h;
+  uint32_t *data;
+  uint32_t *optional_data;
+  uint8_t crc8_d;
+} enocean_packet_t;
+ */
+typedef struct __attribute__((packed))
+{
+  uint8_t sync;
+  uint16_t data_len;
+  uint8_t optional_data_len;
+  uint8_t packet_type;
+  uint8_t crc8_h;
+} enocean_packet_header_t;
+
+typedef struct __attribute__((packed))
+{
+  uint8_t rorg;
+  uint8_t payload;
+  uint32_t sender_id;
+  uint8_t status;
+} enocean_packet_data_radio_erp1_RPS_t;
+
+typedef struct __attribute__((packed))
+{
+  uint8_t rorg;
+  uint8_t payload;
+  uint32_t sender_id;
+  uint8_t status;
+} enocean_packet_data_radio_erp1_1BS_t;
+
+typedef struct __attribute__((packed))
+{
+  uint8_t rorg;
+  uint32_t payload;
+  uint32_t sender_id;
+  uint8_t status;
+} enocean_packet_data_radio_erp1_4BS_t;
+
+typedef struct __attribute__((packed))
+{
+  uint8_t sub_tel_num;
+  uint32_t dest_id;
+  uint8_t dbm;
+  uint8_t sec_level;
+} enocean_packet_optdata_radio_erp1_t;
+
+typedef uint8_t enocean_packet_crc8d_t;
+
+
 EnOcean::EnOcean(AfterReceivedTel pAfterReceived)
 {
   pReceivedOpe = pAfterReceived;
@@ -457,100 +514,97 @@ static uint8_t decodeCrc8d(char aChar)
 ** BEGIN
 ** Send packet to enocean module 
 */
-
-uint8_t pPacket[24];
+enocean_packet_header_t packetHeader;
+enocean_packet_data_radio_erp1_RPS_t packetData_Erp1_RPS;
+enocean_packet_data_radio_erp1_1BS_t packetData_Erp1_1BS;
+enocean_packet_data_radio_erp1_4BS_t packetData_Erp1_4BS;
+enocean_packet_optdata_radio_erp1_t packetOptData;
+enocean_packet_crc8d_t packetCRC8D;
 
 uint8_t EnOcean::sendPacket(uint8_t packetType, uint8_t rorg, uint8_t *pl)
 {
-  pPacket[STATE_SYNC] = START_BYTE;
+
+  packetHeader.sync = START_BYTE;
   if (packetType == RADIO_ERP1)
   {
     switch (rorg)
     {
     case RORG_RPS:
     case RORG_1BS:
-      pPacket[STATE_DATA_LENGTH1] = 0x00;
-      pPacket[STATE_DATA_LENGTH2] = 0x07;
+      packetHeader.data_len = 0x0007;
       break;
     case RORG_4BS:
-      pPacket[STATE_DATA_LENGTH1] = 0x00;
-      pPacket[STATE_DATA_LENGTH2] = 0x0A;
+      packetHeader.data_len = 0x000A;
       break;
 
     default:
       break;
     }
-    pPacket[STATE_OPT_LENGTH] = 0x07; // fixed 7 bytes
+    packetHeader.optional_data_len = 0x07; // fixed 7 bytes
   }
   else
   {
     return 0;
   }
 
-  pPacket[STATE_PACKET_TYPE] = packetType;
+  packetHeader.packet_type = packetType;
+  //pPacket.crc8_h = getCRC8(0, (const uint8_t *)&(pPacket.data_len), 4); // TODO
+  packetHeader.crc8_h = 0x0F;
 
-  pPacket[STATE_CRC8H] = getCRC8(0, (const uint8_t *)&pPacket[1], 4);
+  SerialCom.sendBuffer((const char *)&packetHeader, sizeof(packetHeader));
 
   if (packetType == RADIO_ERP1)
   {
     switch (rorg)
     {
     case RORG_RPS:
-      pPacket[STATE_RORG] = RORG_RPS;
-      pPacket[STATE_PAYLOAD_1] = *pl;
+      packetData_Erp1_RPS.rorg = RORG_RPS;
+      packetData_Erp1_RPS.payload = *pl;
+      packetData_Erp1_RPS.sender_id = 0xFF00FF00;
+      packetData_Erp1_RPS.status = 0x01;
+      SerialCom.sendBuffer((const char *)&packetData_Erp1_RPS, sizeof(packetData_Erp1_RPS));
       break;
     case RORG_1BS:
-      pPacket[STATE_RORG] = RORG_1BS;
-      pPacket[STATE_PAYLOAD_1] = *pl;
+      packetData_Erp1_1BS.rorg = RORG_RPS;
+      packetData_Erp1_1BS.payload = *pl;
+      packetData_Erp1_1BS.sender_id = 0xFF00FF00;
+      packetData_Erp1_1BS.status = 0x01;
+      SerialCom.sendBuffer((const char *)&packetData_Erp1_1BS, sizeof(packetData_Erp1_1BS));
       break;
     case RORG_4BS:
-      pPacket[STATE_RORG] = RORG_4BS;
-      pPacket[STATE_PAYLOAD_1] = pl[0];
-      pPacket[STATE_PAYLOAD_2] = pl[1];
-      pPacket[STATE_PAYLOAD_3] = pl[2];
-      pPacket[STATE_PAYLOAD_4] = pl[3];
+      packetData_Erp1_4BS.rorg = RORG_RPS;
+      packetData_Erp1_4BS.payload = *pl;
+      packetData_Erp1_4BS.sender_id = 0xFF00FF00;
+      packetData_Erp1_4BS.status = 0x01;
+      SerialCom.sendBuffer((const char *)&packetData_Erp1_4BS, sizeof(packetData_Erp1_4BS));
       break;
+
     default:
       break;
     }
-    pPacket[STATE_SENDER_1] = 0x55; // Should not be 0xFFFFFFFF. It is set by enocean module
-    pPacket[STATE_SENDER_2] = 0x55;
-    pPacket[STATE_SENDER_3] = 0x55;
-    pPacket[STATE_SENDER_4] = 0x55;
-    pPacket[STATE_STATUS] = 0x05;
   }
   else
   {
     return 0;
   }
 
-  pPacket[STATE_SUBTEL_NUM] = 0x00; // TODO 0x03
+  packetOptData.sub_tel_num = 0x00;   // TODO 0x03
+  packetOptData.dest_id = 0xFFFFFFFF; // Broadcast
+  packetOptData.dbm = 0xFF;           // Send case
+  packetOptData.sec_level = 0x00;     // Not process
+  SerialCom.sendBuffer((const char *)&packetOptData, sizeof(packetOptData));
 
-  pPacket[STATE_DST_ID_1] = 0xFF; // Broadcast
-  pPacket[STATE_DST_ID_2] = 0xFF;
-  pPacket[STATE_DST_ID_3] = 0xFF;
-  pPacket[STATE_DST_ID_4] = 0xFF;
-  pPacket[STATE_DBM] = 0xFF; // Send case
-
-  pPacket[STATE_SEC_LEVEL] = 0x00; // Not process sec
-
-  pPacket[STATE_CRC8D] = getCRC8(0, (const uint8_t *)&pPacket[6], 17);
+  //pPacket->crc8_d = getCRC8(0, (const uint8_t *)pPacket->data_buffer, (pPacket->data_len + (uint16_t)pPacket->optional_data_len)); // TODO
+  packetCRC8D = 0x0F;
+  SerialCom.sendByte(packetCRC8D);
 
   // 55 00 07 07 01 7A F6 00 FE FB FE 35 20 00 FF FF FF FF 39 00 5C // Test RADIO_ERP1_RORG_RPS packet
   //                         01 99 83 26    01             #     #  // Received packet at TCM310
+  uint8_t test_packet[21] = {0x55, 0x00, 0x07, 0x07, 0x01, 0x7A, 0xF6, 0x00, 0xFE, 0xFB, 0xFE, 0x35, 0x20, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x39, 0x00, 0x5C};
 
-  /* uint8_t test_packet[21] = {0x55, 0x00, 0x07, 0x07, 0x01, 0x7A, 0xF6, 0x00, 0xFE, 0xFB, 0xFE, 0x35, 0x20, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x39, 0x00, 0x5C};
-  for(uint8_t i=0; i < sizeof(test_packet); i++ ) {
-    SerialCom.sendByte(test_packet[i]);
-  } */
-
-  /* for (uint8_t i = 0; i < sizeof(pPacket); i++)
-  {
-    SerialCom.sendByte(pPacket[i]);
-  } */
-
-  SerialCom.sendBuffer((const char *)pPacket, sizeof(pPacket));
-
+  //Serial.write((const uint8_t *)&pPacket, sizeof(pPacket)); // Send packet via UART0
+  //SerialCom.sendPacket((const char *)&test_packet, sizeof(test_packet));
+  //SerialCom.sendBuffer((const char *)&pPacket, sizeof(pPacket));
   return 1;
 }
 

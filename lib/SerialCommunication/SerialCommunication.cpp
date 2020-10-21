@@ -40,18 +40,17 @@ static void IRAM_ATTR enocean_uart_intr_handle(void *arg)
   {
     rx_fifo_len--;
     unsigned char c = ENOCEAN_UART.fifo.rw_byte;
+    Serial.print(c, HEX);
+    Serial.print(" ");
     state = (pReceptOpeSet[state])(c);
   }
 
   // after reading bytes from buffer clear UART interrupt status
   uart_clear_intr_status(ENOCEAN_UART_NUM, UART_RXFIFO_FULL_INT_CLR | UART_RXFIFO_TOUT_INT_CLR);
-
-  // send packet to enocean module
-  //uart_write_bytes(ENOCEAN_UART_NUM, (const char *)"RX Done", 7);
 }
 
 
-void SerialCommunication::Initialization(void)
+void SerialCommunication::init(void)
 {
 
   //Configure parameters of an UART driver, communication pins and install the driver
@@ -82,7 +81,15 @@ void SerialCommunication::Initialization(void)
   state = 0;
 }
 
-void SerialCommunication::SetReceptOpe(ReceptionOpe *pRcvOpeSet)
+void SerialCommunication::setReceptOpe(ReceptionOpe* pRcvOpeSet)
 {
   pReceptOpeSet = pRcvOpeSet;
+}
+
+void SerialCommunication::sendByte(uint8_t byte){
+  uart_write_bytes(ENOCEAN_UART_NUM, (const char *) &byte, 1);
+}
+
+void SerialCommunication::sendBuffer(const char *packet, size_t len){
+  uart_write_bytes(ENOCEAN_UART_NUM, packet, len);
 }

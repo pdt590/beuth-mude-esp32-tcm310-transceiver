@@ -10,7 +10,7 @@ It supports the following EnOcean protocols.
 
 * ESP3 Packet Type 1: RADIO_ERP1
 * EEP: RPS, 1BS, 4BS
-* CRC8 check is omitted
+* CRC8 check is omitted (TODO)
 * Data via Repeater is not supported.
 
 ## Demo
