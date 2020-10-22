@@ -40,15 +40,19 @@ static void IRAM_ATTR enocean_uart_intr_handle(void *arg)
   {
     rx_fifo_len--;
     unsigned char c = ENOCEAN_UART.fifo.rw_byte;
+#ifdef DEBUG
     Serial.print(c, HEX);
     Serial.print(" ");
+    if(rx_fifo_len==0) Serial.prinln();
+#endif
     state = (pReceptOpeSet[state])(c);
   }
+
+
 
   // after reading bytes from buffer clear UART interrupt status
   uart_clear_intr_status(ENOCEAN_UART_NUM, UART_RXFIFO_FULL_INT_CLR | UART_RXFIFO_TOUT_INT_CLR);
 }
-
 
 void SerialCommunication::init(void)
 {
@@ -81,15 +85,17 @@ void SerialCommunication::init(void)
   state = 0;
 }
 
-void SerialCommunication::setReceptOpe(ReceptionOpe* pRcvOpeSet)
+void SerialCommunication::setReceptOpe(ReceptionOpe *pRcvOpeSet)
 {
   pReceptOpeSet = pRcvOpeSet;
 }
 
-void SerialCommunication::sendByte(uint8_t byte){
-  uart_write_bytes(ENOCEAN_UART_NUM, (const char *) &byte, 1);
+void SerialCommunication::sendByte(uint8_t byte)
+{
+  uart_write_bytes(ENOCEAN_UART_NUM, (const char *)&byte, 1);
 }
 
-void SerialCommunication::sendBuffer(const char *packet, size_t len){
+void SerialCommunication::sendBuffer(const char *packet, size_t len)
+{
   uart_write_bytes(ENOCEAN_UART_NUM, packet, len);
 }

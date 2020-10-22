@@ -4,9 +4,7 @@
 #include <Arduino.h>
 #include "SerialCommunication.h"
 
-typedef void (*AfterReceivedTel)(uint8_t /*rorg*/, uint32_t /* ID */, uint32_t /* data */, uint8_t /* dbm */);
-
-#define DEBUG
+typedef void (*AfterReceivedTel)(uint8_t /*rorg*/, uint32_t /* ID */, uint8_t* /* pl */, uint8_t /* dbm */);
 
 // Sync Byte
 #define START_BYTE 0x55

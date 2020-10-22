@@ -53,10 +53,10 @@ static uint32_t getPayload();
 static void prettyPrint();
 
 static uint8_t decodeSync(char aChar);
-static uint8_t decodpDataLength1(char aChar);
-static uint8_t decodpDataLength2(char aChar);
+static uint8_t decodeDataLength1(char aChar);
+static uint8_t decodeDataLength2(char aChar);
 static uint8_t decodeOptLength(char aChar);
-static uint8_t decodpPacketType(char aChar);
+static uint8_t decodePacketType(char aChar);
 static uint8_t decodeCrc8h(char aChar);
 
 static uint8_t decodeROrg(char aChar);
@@ -114,8 +114,8 @@ typedef uint8_t (*DecodeOpe)(char);
 const DecodeOpe DecodeOpeSet[] = {
     // HEADER
     decodeSync,        /* STATE_SYNC */
-    decodpDataLength1, /* STATE_DATA_LENGTH1 */
-    decodpDataLength2, /* STATE_DATA_LENGTH2 */
+    decodeDataLength1, /* STATE_DATA_LENGTH1 */
+    decodeDataLength2, /* STATE_DATA_LENGTH2 */
     decodeOptLength,   /* STATE_OPT_LENGTH */
     decodpPacketType,  /* STATE_PACKET_TYPE */
     decodeCrc8h,       /* STATE_CRC8H */
@@ -318,14 +318,14 @@ static uint8_t decodeSync(char aChar)
 }
 
 /* STATE_DATA_LENGTH1 */
-static uint8_t decodpDataLength1(char aChar)
+static uint8_t decodeDataLength1(char aChar)
 {
   dataLength1 = aChar;
   return STATE_DATA_LENGTH2;
 }
 
 /* STATE_DATA_LENGTH2 */
-static uint8_t decodpDataLength2(char aChar)
+static uint8_t decodeDataLength2(char aChar)
 {
   dataLength2 = aChar;
   //dataLength = getDataLength();

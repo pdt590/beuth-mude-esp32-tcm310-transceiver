@@ -49,7 +49,7 @@ static void reset();
 static uint8_t getRORG();
 static uint16_t getDataLength();
 static uint32_t getSenderId();
-static uint32_t getPayload();
+static uint8_t* getPayload();
 static void prettyPrint();
 
 static uint8_t decodeSync(char aChar);
@@ -114,7 +114,7 @@ typedef uint8_t (*DecodeOpe)(char);
 const DecodeOpe DecodeOpeSet[] = {
     // HEADER
     decodeSync,        /* STATE_SYNC */
-    decodpDataLength1, /* STATE_DATA_LENGTH1 */
+    decodeDataLength1, /* STATE_DATA_LENGTH1 */
     decodeDataLength2, /* STATE_DATA_LENGTH2 */
     decodeOptLength,   /* STATE_OPT_LENGTH */
     decodePacketType,  /* STATE_PACKET_TYPE */
@@ -185,10 +185,9 @@ static uint32_t getSenderId()
   return aResponse;
 }
 
-static uint32_t getPayload()
+static uint8_t* getPayload()
 {
-  uint32_t aResponse = ((uint32_t(payload[0]) << 24) & 0xFF000000) + ((uint32_t(payload[1]) << 16) & 0x00FF0000) + ((uint32_t(payload[2]) << 8) & 0x0000FF00) + (uint32_t(payload[3]) & 0x000000FF);
-  return aResponse;
+  return payload;
 }
 
 static void prettyPrint()
@@ -261,7 +260,7 @@ static uint8_t decodeSync(char aChar)
 }
 
 /* STATE_DATA_LENGTH1 */
-static uint8_t decodpDataLength1(char aChar)
+static uint8_t decodeDataLength1(char aChar)
 {
   dataLength1 = aChar;
   return STATE_DATA_LENGTH2;
@@ -430,7 +429,7 @@ static uint8_t decodeCrc8d(char aChar)
   crc8d = aChar;
 
   uint32_t senderId = getSenderId();
-  uint32_t data = getPayload();
+  uint8_t* data = getPayload();
 
   if (pReceivedOpe != NULL)
   {
@@ -439,7 +438,7 @@ static uint8_t decodeCrc8d(char aChar)
 
 #ifdef DEBUG
   if ((rorg == RORG_RPS) || (rorg == RORG_1BS) || (rorg == RORG_4BS) || (rorg == RORG_VLD))
-  { // RPS 1BS 4BS
+  { // RPS 1BS 4BS VLD
     prettyPrint();
   }
 #endif
@@ -465,6 +464,7 @@ static uint8_t decodeCrc8d(char aChar)
 #define PACKET_RADIO_ERP1_RPS_DATA_LEN 0x07
 #define PACKET_RADIO_ERP1_1BS_DATA_LEN 0x07
 #define PACKET_RADIO_ERP1_4BS_DATA_LEN 0x0A
+
 #define PACKET_RADIO_ERP1_OPT_DATA_LEN 0x07
 
 enum PACKET_RADIO_ERP1_HEADER
@@ -621,21 +621,6 @@ uint8_t EnOcean::sendPacket(uint8_t packetType, uint8_t rorg, uint8_t *pl)
 
   packetCRC8D = getCRC8(packetCRC8D, (const uint8_t *)pPacketOptData, PACKET_RADIO_ERP1_OPT_DATA_LEN);
   SerialCom.sendByte(packetCRC8D); // SENT CRC8D
-
-  // 55 00 07 07 01 7A F6 00 FE FB FE 35 20 00 FF FF FF FF 39 00 5C // Test RADIO_ERP1_RORG_RPS packet
-  //                         01 99 83 26    01             #     #  // Received packet at TCM310
-
-  /* uint8_t test_packet[21] = {0x55, 0x00, 0x07, 0x07, 0x01, 0x7A, 0xF6, 0x00, 0xFE, 0xFB, 0xFE, 0x35, 0x20, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x39, 0x00, 0x5C};
-  for(uint8_t i=0; i < sizeof(test_packet); i++ ) {
-    SerialCom.sendByte(test_packet[i]);
-  } */
-
-  /* for (uint8_t i = 0; i < sizeof(pPacket); i++)
-  {
-    SerialCom.sendByte(pPacket[i]);
-  } */
-
-  //SerialCom.sendBuffer((const char *)pPacket, sizeof(pPacket));
 
   free(pPacketData);
   return 1;
