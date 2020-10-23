@@ -1,0 +1,18 @@
+{
+  "name": "Enocean",
+  "keywords": "enocean, iot",
+  "description": "A enocean library on ESP32 for EnOcean messaging",
+  "repository": {
+      "type": "git",
+      "url": "https://github.com"
+  },
+  "version": "0.1",
+  "exclude": "tests",
+  "examples": "examples/*/*.ino",
+  "frameworks": "arduino",
+  "platforms": [
+      "atmelavr",
+      "espressif8266",
+      "espressif32"
+  ]
+}

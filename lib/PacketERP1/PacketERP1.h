@@ -1,0 +1,74 @@
+#ifndef PacketERP1_h
+#define PacketERP1_h
+
+#include <Arduino.h>
+
+#define PACKET_RADIO_ERP1_RPS_DATA_LEN 0x07
+#define PACKET_RADIO_ERP1_1BS_DATA_LEN 0x07
+#define PACKET_RADIO_ERP1_4BS_DATA_LEN 0x0A
+
+#define PACKET_RADIO_ERP1_OPT_DATA_LEN 0x07
+
+enum PACKET_RADIO_ERP1_RPS_DATA
+{
+  RPS_RORG = 0,
+  RPS_PAYLOAD,
+  RPS_SENDER_1,
+  RPS_SENDER_2,
+  RPS_SENDER_3,
+  RPS_SENDER_4,
+  RPS_STATUS,
+};
+
+enum PACKET_RADIO_ERP1_1BS_DATA
+{
+  ONEBS_RORG = 0,
+  ONEBS_PAYLOAD,
+  ONEBS_SENDER_1,
+  ONEBS_SENDER_2,
+  ONEBS_SENDER_3,
+  ONEBS_SENDER_4,
+  ONEBS_STATUS,
+};
+
+enum PACKET_RADIO_ERP1_4BS_DATA
+{
+  FOURBS_RORG = 0,
+  FOURBS_PAYLOAD_1,
+  FOURBS_PAYLOAD_2,
+  FOURBS_PAYLOAD_3,
+  FOURBS_PAYLOAD_4,
+  FOURBS_SENDER_1,
+  FOURBS_SENDER_2,
+  FOURBS_SENDER_3,
+  FOURBS_SENDER_4,
+  FOURBS_STATUS,
+};
+
+enum PACKET_RADIO_ERP1_OPT_DATA
+{
+  SUBTEL_NUM = 0,
+  DST_ID_1,
+  DST_ID_2,
+  DST_ID_3,
+  DST_ID_4,
+  DBM,
+  SEC_LEVEL,
+  //CRC8D,
+};
+
+// R-ORG
+#define RORG_RPS 0xF6
+#define RORG_1BS 0xD5
+#define RORG_4BS 0xA5
+#define RORG_VLD 0xD2
+
+class PacketERP1
+{
+public:
+  uint8_t sendPacket(uint8_t rorg, uint8_t *pl);
+
+private:
+};
+
+#endif // PacketERP1_h
