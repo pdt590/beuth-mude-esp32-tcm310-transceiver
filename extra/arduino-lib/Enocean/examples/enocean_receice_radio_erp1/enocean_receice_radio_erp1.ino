@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "EnOcean.h"
+#include "EnOcean/EnOcean.h"
 
 void callback(uint8_t rorg, uint8_t *id, uint8_t *data, uint8_t dBm)
 {

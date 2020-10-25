@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#include "Util.h"
 #include "EnOcean.h"
+#include "Util.h"
 #include "CRC8.h"
 #include "SerialCommunication.h"
 #include "EnOceanProfile.h"

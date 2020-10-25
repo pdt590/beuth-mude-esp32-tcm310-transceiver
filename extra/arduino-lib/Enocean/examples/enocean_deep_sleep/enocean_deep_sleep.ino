@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include "EnOcean.h"
-#include "PacketERP1.h"
+#include "EnOcean/PacketERP1.h"
 
 uint8_t data[4] = {0x12, 0x34, 0x56, 0x78};
 

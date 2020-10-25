@@ -1,11 +1,11 @@
 #include <Arduino.h>
-#include "Util.h"
 #include "EnOcean.h"
-#include "CRC8.h"
-#include "SerialCommunication.h"
-#include "EnOceanProfile.h"
-#include "PacketERP1.h"
-#include "PacketCommonCmd.h"
+#include "EnOcean/Util.h"
+#include "EnOcean/CRC8.h"
+#include "EnOcean/SerialCommunication.h"
+#include "EnOcean/EnOceanProfile.h"
+#include "EnOcean/PacketERP1.h"
+#include "EnOcean/PacketCommonCmd.h"
 
 /*
 ** BEGIN
