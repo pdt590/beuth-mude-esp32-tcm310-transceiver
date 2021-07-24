@@ -1,7 +1,16 @@
 #include <Arduino.h>
+#include "EnOcean.h"
+#include "Util.h"
+#include "CRC8.h"
 #include "SerialCommunication.h"
 #include "EnOceanProfile.h"
-#include "ESP3Parser.h"
+#include "PacketERP1.h"
+#include "PacketCommonCmd.h"
+
+/*
+** BEGIN
+** Init UART and listen packets from enocean module 
+*/
 
 static SerialCommunication SerialCom;
 // Data Length - 2 bytes - 0xnnnn
@@ -41,9 +50,9 @@ static AfterReceivedTel pReceivedOpe;
 
 static void reset();
 static uint8_t getRORG();
-static uint16_t getPacketLength();
-static uint32_t getSenderId();
-static uint32_t getPayload();
+static uint16_t getDataLength();
+static uint8_t* getSenderId();
+static uint8_t* getPayload();
 static void prettyPrint();
 
 static uint8_t decodeSync(char aChar);
@@ -73,7 +82,8 @@ static uint8_t decodeDbm(char aChar);
 static uint8_t decodeSecLevel(char aChar);
 static uint8_t decodeCrc8d(char aChar);
 
-enum STATE_ESP3 {
+enum STATE_ESP3_RADIO_ERP1
+{
   STATE_SYNC = 0,
   STATE_DATA_LENGTH1,
   STATE_DATA_LENGTH2,
@@ -100,59 +110,60 @@ enum STATE_ESP3 {
   STATE_DBM,
   STATE_SEC_LEVEL,
   STATE_CRC8D,
-}; 
+};
 
 typedef uint8_t (*DecodeOpe)(char);
 
 const DecodeOpe DecodeOpeSet[] = {
-  // HEADER
-  decodeSync,           /* STATE_SYNC */
-  decodeDataLength1,    /* STATE_DATA_LENGTH1 */
-  decodeDataLength2,    /* STATE_DATA_LENGTH2 */
-  decodeOptLength,      /* STATE_OPT_LENGTH */
-  decodePacketType,     /* STATE_PACKET_TYPE */
-  decodeCrc8h,          /* STATE_CRC8H */
+    // HEADER
+    decodeSync,        /* STATE_SYNC */
+    decodeDataLength1, /* STATE_DATA_LENGTH1 */
+    decodeDataLength2, /* STATE_DATA_LENGTH2 */
+    decodeOptLength,   /* STATE_OPT_LENGTH */
+    decodePacketType,  /* STATE_PACKET_TYPE */
+    decodeCrc8h,       /* STATE_CRC8H */
 
-  // RADIO_TELEGRAM
-  decodeROrg,           /* STATE_RORG */
-  decodePayload1,       /* STATE_PAYLOAD_1 */
-  decodePayload2,       /* STATE_PAYLOAD_2 */
-  decodePayload3,       /* STATE_PAYLOAD_3 */
-  decodePayload4,       /* STATE_PAYLOAD_4 */
-  decodeSenderId1,      /* STATE_SENDER_1 */
-  decodeSenderId2,      /* STATE_SENDER_2 */
-  decodeSenderId3,      /* STATE_SENDER_3 */
-  decodeSenderId4,      /* STATE_SENDER_4 */
-  decodeStatus,         /* STATE_STATUS */
+    // RADIO_TELEGRAM
+    decodeROrg,      /* STATE_RORG */
+    decodePayload1,  /* STATE_PAYLOAD_1 */
+    decodePayload2,  /* STATE_PAYLOAD_2 */
+    decodePayload3,  /* STATE_PAYLOAD_3 */
+    decodePayload4,  /* STATE_PAYLOAD_4 */
+    decodeSenderId1, /* STATE_SENDER_1 */
+    decodeSenderId2, /* STATE_SENDER_2 */
+    decodeSenderId3, /* STATE_SENDER_3 */
+    decodeSenderId4, /* STATE_SENDER_4 */
+    decodeStatus,    /* STATE_STATUS */
 
-  // OPTIONAL_DATA
-  decodeSubTelNum,      /* STATE_SUBTEL_NUM */
-  decodeDstId1,         /* STATE_DST_ID_1 */
-  decodeDstId2,         /* STATE_DST_ID_2 */
-  decodeDstId3,         /* STATE_DST_ID_3 */
-  decodeDstId4,         /* STATE_DST_ID_4 */
-  decodeDbm,            /* STATE_DBM */
-  decodeSecLevel,       /* STATE_SEC_LEVEL */
-  decodeCrc8d           /* STATE_CRC8D */
+    // OPTIONAL_DATA
+    decodeSubTelNum, /* STATE_SUBTEL_NUM */
+    decodeDstId1,    /* STATE_DST_ID_1 */
+    decodeDstId2,    /* STATE_DST_ID_2 */
+    decodeDstId3,    /* STATE_DST_ID_3 */
+    decodeDstId4,    /* STATE_DST_ID_4 */
+    decodeDbm,       /* STATE_DBM */
+    decodeSecLevel,  /* STATE_SEC_LEVEL */
+    decodeCrc8d      /* STATE_CRC8D */
 };
 
-
-ESP3Parser::ESP3Parser(AfterReceivedTel pAfterReceived)
+EnOcean::EnOcean(AfterReceivedTel pAfterReceived)
 {
   pReceivedOpe = pAfterReceived;
   reset();
 }
 
-void ESP3Parser::initialization()
+void EnOcean::begin() // Esp begins to listen packets from enocean module via UART2
 {
+#ifdef DEBUG
   Serial.println("                                   ");
   Serial.println("                                   ");
   Serial.println("");
   Serial.println("    ID     R-ORG     Data       dBm");
   Serial.println("------------------------------------");
-  
-  SerialCom.Initialization();
-  SerialCom.SetReceptOpe((ReceptionOpe*)DecodeOpeSet);
+#endif
+
+  SerialCom.init();
+  SerialCom.setReceptOpe((ReceptionOpe *)DecodeOpeSet);
 }
 
 static void reset()
@@ -166,75 +177,85 @@ static void reset()
   return rorg;
 } */
 
-static uint16_t getPacketLength() {
+static uint16_t getDataLength()
+{
   return ((uint16_t(dataLength1) << 8) & 0xff00) + (dataLength2 & 0xff);
 }
 
-static uint32_t getSenderId() {
-  uint32_t aResponse = ((uint32_t(senderId[0]) << 24) & 0xFF000000) + ((uint32_t(senderId[1])  << 16) & 0x00FF0000) + ((uint32_t(senderId[2]) << 8) & 0x0000FF00) + (uint32_t(senderId[3]) & 0x000000FF);
-  return aResponse;
+static uint8_t* getSenderId()
+{
+  return senderId;
 }
 
-static uint32_t getPayload() {
-  uint32_t aResponse = ((uint32_t(payload[0]) << 24) & 0xFF000000) + ((uint32_t(payload[1])  << 16) & 0x00FF0000) + ((uint32_t(payload[2]) << 8) & 0x0000FF00) + (uint32_t(payload[3]) & 0x000000FF);
-  return aResponse;
+static uint8_t* getPayload()
+{
+  return payload;
 }
 
 static void prettyPrint()
 {
-  uint8_t  i;
+  uint8_t i;
 
   Serial.print(" ");
-  for(i = 0; i < 4; i++) {
-    if((senderId[i] & 0xF0) == 0x00) {
+  for (i = 0; i < 4; i++)
+  {
+    if ((senderId[i] & 0xF0) == 0x00)
+    {
       Serial.print((senderId[i] & 0xF0), HEX);
     }
     Serial.print(senderId[i], HEX);
   }
-  
-  switch (rorg) {
-    case RORG_RPS: /* RPS Telegram */
-      Serial.print("   RPS   ");
-      if((payload[0] & 0xF0) == 0x00) {
-        Serial.print((payload[0] & 0xF0), HEX);
-      }
-      Serial.print(payload[0], HEX);
-      Serial.print("          ");
-      break;
-      
-    case RORG_1BS: /* 1BS Telegram */
-      Serial.print("   1BS   ");
-      if((payload[0] & 0xF0) == 0x00) {
-        Serial.print((payload[0] & 0xF0), HEX);
-      }
-      Serial.print(payload[0], HEX);
-      Serial.print("          ");
-      break;
-      
-    case RORG_4BS: /* 4BS Telegram */
-      Serial.print("   4BS   ");
-      for(i = 0; i < 4; i++) {
-        if((payload[i] & 0xF0) == 0x00) {
-          Serial.print((payload[i] & 0xF0), HEX);
-        }
-        Serial.print(payload[i], HEX);
-        Serial.print(" ");
-      }
-      break;
-  }
-  
-  Serial.print("  -");
-  Serial.println(dbm , DEC);
-}
 
+  switch (rorg)
+  {
+  case RORG_RPS: /* RPS Telegram */
+    Serial.print("   RPS   ");
+    if ((payload[0] & 0xF0) == 0x00)
+    {
+      Serial.print((payload[0] & 0xF0), HEX);
+    }
+    Serial.print(payload[0], HEX);
+    Serial.print("          ");
+    break;
+
+  case RORG_1BS: /* 1BS Telegram */
+    Serial.print("   1BS   ");
+    if ((payload[0] & 0xF0) == 0x00)
+    {
+      Serial.print((payload[0] & 0xF0), HEX);
+    }
+    Serial.print(payload[0], HEX);
+    Serial.print("          ");
+    break;
+
+  case RORG_4BS: /* 4BS Telegram */
+    Serial.print("   4BS   ");
+    for (i = 0; i < 4; i++)
+    {
+      if ((payload[i] & 0xF0) == 0x00)
+      {
+        Serial.print((payload[i] & 0xF0), HEX);
+      }
+      Serial.print(payload[i], HEX);
+      Serial.print(" ");
+    }
+    break;
+  }
+
+  Serial.print("  -");
+  Serial.println(dbm, DEC);
+}
 
 /* STATE_SYNC */
 static uint8_t decodeSync(char aChar)
 {
   uint8_t state;
-  if (aChar == START_BYTE) {
+  if (aChar == START_BYTE)
+  {
     state = STATE_DATA_LENGTH1;
-  } else {
+  }
+  else
+  {
     state = STATE_SYNC;
   }
   return state;
@@ -251,7 +272,7 @@ static uint8_t decodeDataLength1(char aChar)
 static uint8_t decodeDataLength2(char aChar)
 {
   dataLength2 = aChar;
-  dataLength = getPacketLength();
+  //dataLength = getDataLength();
   return STATE_OPT_LENGTH;
 }
 
@@ -279,7 +300,6 @@ static uint8_t decodeCrc8h(char aChar)
 /* STATE_RORG */
 static uint8_t decodeROrg(char aChar)
 {
-  dataLength--;
   rorg = aChar;
   return STATE_PAYLOAD_1;
 }
@@ -288,11 +308,13 @@ static uint8_t decodeROrg(char aChar)
 static uint8_t decodePayload1(char aChar)
 {
   uint8_t state = 0;
-  dataLength--;
   payload[0] = aChar;
-  if((rorg == RORG_1BS) || (rorg == RORG_RPS)) {
+  if ((rorg == RORG_1BS) || (rorg == RORG_RPS))
+  {
     state = STATE_SENDER_1;
-  } else if (rorg == RORG_4BS) {
+  }
+  else if (rorg == RORG_4BS)
+  {
     state = STATE_PAYLOAD_2;
   }
   return state;
@@ -301,7 +323,6 @@ static uint8_t decodePayload1(char aChar)
 /* STATE_PAYLOAD_2 */
 static uint8_t decodePayload2(char aChar)
 {
-  dataLength--;
   payload[1] = aChar;
   return STATE_PAYLOAD_3;
 }
@@ -309,7 +330,6 @@ static uint8_t decodePayload2(char aChar)
 /* STATE_PAYLOAD_3 */
 static uint8_t decodePayload3(char aChar)
 {
-  dataLength--;
   payload[2] = aChar;
   return STATE_PAYLOAD_4;
 }
@@ -317,7 +337,6 @@ static uint8_t decodePayload3(char aChar)
 /* STATE_PAYLOAD_4 */
 static uint8_t decodePayload4(char aChar)
 {
-  dataLength--;
   payload[3] = aChar;
   return STATE_SENDER_1;
 }
@@ -325,7 +344,6 @@ static uint8_t decodePayload4(char aChar)
 /* STATE_SENDER_1 */
 static uint8_t decodeSenderId1(char aChar)
 {
-  dataLength--;
   senderId[0] = aChar;
   return STATE_SENDER_2;
 }
@@ -333,7 +351,6 @@ static uint8_t decodeSenderId1(char aChar)
 /* STATE_SENDER_2 */
 static uint8_t decodeSenderId2(char aChar)
 {
-  dataLength--;
   senderId[1] = aChar;
   return STATE_SENDER_3;
 }
@@ -341,7 +358,6 @@ static uint8_t decodeSenderId2(char aChar)
 /* STATE_SENDER_3 */
 static uint8_t decodeSenderId3(char aChar)
 {
-  dataLength--;
   senderId[2] = aChar;
   return STATE_SENDER_4;
 }
@@ -349,7 +365,6 @@ static uint8_t decodeSenderId3(char aChar)
 /* STATE_SENDER_4 */
 static uint8_t decodeSenderId4(char aChar)
 {
-  dataLength--;
   senderId[3] = aChar;
   return STATE_STATUS;
 }
@@ -357,7 +372,6 @@ static uint8_t decodeSenderId4(char aChar)
 /* STATE_STATUS */
 static uint8_t decodeStatus(char aChar)
 {
-  dataLength--;
   status = aChar;
   return STATE_SUBTEL_NUM;
 }
@@ -416,18 +430,48 @@ static uint8_t decodeCrc8d(char aChar)
 {
   crc8d = aChar;
 
-  uint32_t senderId = getSenderId();
-  uint32_t data = getPayload();
-  
-  if(pReceivedOpe != NULL) {
+  uint8_t* senderId = getSenderId();
+  uint8_t* data = getPayload();
+
+  if (pReceivedOpe != NULL)
+  {
     (*pReceivedOpe)(rorg, senderId, data, dbm);
   }
 
-  if ((rorg == RORG_RPS) || (rorg == RORG_1BS) || (rorg == RORG_4BS)) { // RPS 1BS 4BS
+#ifdef DEBUG
+  if ((rorg == RORG_RPS) || (rorg == RORG_1BS) || (rorg == RORG_4BS) || (rorg == RORG_VLD))
+  { // RPS 1BS 4BS VLD
     prettyPrint();
   }
-  
+#endif
+
   reset();
   return STATE_SYNC;
 }
 
+/*
+** END
+** Init UART and listen packets from enocean module 
+*/
+
+uint8_t EnOcean::send(uint8_t packetType, uint8_t rorg, uint8_t *pl) // TODO send for all packetTypes
+{
+  if (packetType == RADIO_ERP1)
+  {
+    PacketERP1 obj;
+    obj.sendPacket(rorg, pl);
+  }
+  return 1;
+}
+
+uint8_t EnOcean::deepSleep(uint32_t sleepPeriod)
+{
+  PacketCommonCmd obj;
+  obj.sendPacket(CO_WR_SLEEP, sleepPeriod/10);
+  return 1;
+}
+
+/*
+** END
+** Send packet to enocean module 
+*/

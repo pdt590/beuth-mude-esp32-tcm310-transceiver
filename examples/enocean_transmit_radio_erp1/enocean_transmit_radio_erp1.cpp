@@ -6,17 +6,9 @@ uint8_t data[4] = {0x12, 0x34, 0x56, 0x78};
 
 void callback(uint8_t rorg, uint8_t *id, uint8_t *data, uint8_t dBm)
 { // 4 bytes id, 4 bytes data
-  Serial.print("Data: ");
-  Serial.print(data[0], HEX);
-  Serial.print(" ");
-  Serial.print(data[1], HEX);
-  Serial.print(" ");
-  Serial.print(data[2], HEX);
-  Serial.print(" ");
-  Serial.println(data[3], HEX);
 };
 
-EnOcean parser(callback);
+EnOcean Enocean(callback);
 
 void setup()
 {
@@ -26,15 +18,11 @@ void setup()
   {
     ; // wait for serial port to connect.
   }
-  parser.begin();
+  Enocean.begin();
 }
 
 void loop()
 {
-  //parser.send(RADIO_ERP1, RORG_4BS, data);
-  //delay(3000);
-  parser.send(RADIO_ERP1, RORG_4BS, data);
-  delay(2000);
-  parser.deepSleep(1000);
+  Enocean.send(RADIO_ERP1, RORG_4BS, data);
   delay(3000);
 }
